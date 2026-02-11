@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.4 (2026-02-11)
+
+Full Changelog: [v0.0.3...v0.0.4](https://github.com/tonybruess/linqapp-typescript/compare/v0.0.3...v0.0.4)
+
+### Chores
+
+* update SDK settings ([f5e6efb](https://github.com/tonybruess/linqapp-typescript/commit/f5e6efbb7581cce0328a970a27cb31b380c387dd))
+
 ## 0.0.3 (2026-02-11)
 
 Full Changelog: [v0.0.2...v0.0.3](https://github.com/tonybruess/linqapp-typescript/compare/v0.0.2...v0.0.3)
