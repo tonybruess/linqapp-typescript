@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.5 (2026-02-12)
+
+Full Changelog: [v0.0.4...v0.0.5](https://github.com/tonybruess/linqapp-typescript/compare/v0.0.4...v0.0.5)
+
+### Chores
+
+* **internal:** avoid type checking errors with ts-reset ([9832a71](https://github.com/tonybruess/linqapp-typescript/commit/9832a7198477bfbe23773ac23d2189fce56bf8b5))
+
 ## 0.0.4 (2026-02-11)
 
 Full Changelog: [v0.0.3...v0.0.4](https://github.com/tonybruess/linqapp-typescript/compare/v0.0.3...v0.0.4)
