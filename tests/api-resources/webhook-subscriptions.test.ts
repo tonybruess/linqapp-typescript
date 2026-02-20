@@ -8,7 +8,7 @@ const client = new Linqapp({
 });
 
 describe('resource webhookSubscriptions', () => {
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('create: only required params', async () => {
     const responsePromise = client.webhookSubscriptions.create({
       subscribed_events: ['message.sent', 'message.delivered', 'message.read'],
@@ -23,7 +23,7 @@ describe('resource webhookSubscriptions', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('create: required and optional params', async () => {
     const response = await client.webhookSubscriptions.create({
       subscribed_events: ['message.sent', 'message.delivered', 'message.read'],
@@ -31,7 +31,7 @@ describe('resource webhookSubscriptions', () => {
     });
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('retrieve', async () => {
     const responsePromise = client.webhookSubscriptions.retrieve('b2c3d4e5-f6a7-8901-bcde-f23456789012');
     const rawResponse = await responsePromise.asResponse();
@@ -43,7 +43,7 @@ describe('resource webhookSubscriptions', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('update', async () => {
     const responsePromise = client.webhookSubscriptions.update('b2c3d4e5-f6a7-8901-bcde-f23456789012', {});
     const rawResponse = await responsePromise.asResponse();
@@ -55,7 +55,7 @@ describe('resource webhookSubscriptions', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('list', async () => {
     const responsePromise = client.webhookSubscriptions.list();
     const rawResponse = await responsePromise.asResponse();
@@ -67,7 +67,7 @@ describe('resource webhookSubscriptions', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('delete', async () => {
     const responsePromise = client.webhookSubscriptions.delete('b2c3d4e5-f6a7-8901-bcde-f23456789012');
     const rawResponse = await responsePromise.asResponse();
