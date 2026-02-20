@@ -8,7 +8,7 @@ const client = new Linqapp({
 });
 
 describe('resource typing', () => {
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('start', async () => {
     const responsePromise = client.chats.typing.start('550e8400-e29b-41d4-a716-446655440000');
     const rawResponse = await responsePromise.asResponse();
@@ -20,7 +20,7 @@ describe('resource typing', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('stop', async () => {
     const responsePromise = client.chats.typing.stop('550e8400-e29b-41d4-a716-446655440000');
     const rawResponse = await responsePromise.asResponse();

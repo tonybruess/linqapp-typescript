@@ -8,7 +8,7 @@ const client = new Linqapp({
 });
 
 describe('resource phonenumbers', () => {
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('list', async () => {
     const responsePromise = client.phonenumbers.list();
     const rawResponse = await responsePromise.asResponse();

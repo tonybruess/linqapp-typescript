@@ -8,7 +8,7 @@ const client = new Linqapp({
 });
 
 describe('resource participants', () => {
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('add: only required params', async () => {
     const responsePromise = client.chats.participants.add('550e8400-e29b-41d4-a716-446655440000', {
       handle: '+12052499136',
@@ -22,14 +22,14 @@ describe('resource participants', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('add: required and optional params', async () => {
     const response = await client.chats.participants.add('550e8400-e29b-41d4-a716-446655440000', {
       handle: '+12052499136',
     });
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('remove: only required params', async () => {
     const responsePromise = client.chats.participants.remove('550e8400-e29b-41d4-a716-446655440000', {
       handle: '+12052499136',
@@ -43,7 +43,7 @@ describe('resource participants', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('remove: required and optional params', async () => {
     const response = await client.chats.participants.remove('550e8400-e29b-41d4-a716-446655440000', {
       handle: '+12052499136',
