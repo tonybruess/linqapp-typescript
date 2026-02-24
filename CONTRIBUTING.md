@@ -60,7 +60,7 @@ $ yarn link linqapp
 # With pnpm
 $ pnpm link --global
 $ cd ../my-package
-$ pnpm link -—global linqapp
+$ pnpm link --global linqapp
 ```
 
 ## Running tests
