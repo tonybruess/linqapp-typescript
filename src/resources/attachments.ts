@@ -5,6 +5,52 @@ import { APIPromise } from '../core/api-promise';
 import { RequestOptions } from '../internal/request-options';
 import { path } from '../internal/utils/path';
 
+/**
+ * Send files (images, videos, documents, audio) with messages by providing a URL in a media part.
+ * Pre-uploading via `POST /v3/attachments` is **optional** and only needed for specific optimization scenarios.
+ *
+ * ## Sending Media via URL (up to 10MB)
+ *
+ * Provide a publicly accessible HTTPS URL with a [supported media type](#supported-file-types) in the `url` field of a media part.
+ *
+ * ```json
+ * {
+ *   "parts": [
+ *     { "type": "media", "url": "https://your-cdn.com/images/photo.jpg" }
+ *   ]
+ * }
+ * ```
+ *
+ * This works with any URL you already host — no pre-upload step required. **Maximum file size: 10MB.**
+ *
+ * ## Pre-Upload (required for files over 10MB)
+ *
+ * Use `POST /v3/attachments` when you want to:
+ * - **Send files larger than 10MB** (up to 100MB) — URL-based downloads are limited to 10MB
+ * - **Send the same file to many recipients** — upload once, reuse the `attachment_id` without re-downloading each time
+ * - **Reduce message send latency** — the file is already stored, so sending is faster
+ *
+ * **How it works:**
+ * 1. `POST /v3/attachments` with file metadata → returns a presigned `upload_url` (valid for **15 minutes**) and a permanent `attachment_id`
+ * 2. PUT the raw file bytes to the `upload_url` with the `required_headers` (no JSON or multipart — just the binary content)
+ * 3. Reference the `attachment_id` in your media part when sending messages (no expiration)
+ *
+ * **Key difference:** When you provide an external `url`, we download and process the file on every send.
+ * When you use a pre-uploaded `attachment_id`, the file is already stored — so repeated sends skip the download step entirely.
+ *
+ * ## Supported File Types
+ *
+ * - **Images:** JPEG, PNG, GIF, HEIC, HEIF, TIFF, BMP
+ * - **Videos:** MP4, MOV, M4V
+ * - **Audio:** M4A, AAC, MP3, WAV, AIFF, CAF, AMR
+ * - **Documents:** PDF, TXT, RTF, CSV, Office formats, ZIP
+ * - **Contact & Calendar:** VCF, ICS
+ *
+ * ## File Size Limits
+ *
+ * - **URL-based (`url` field):** 10MB maximum
+ * - **Pre-upload (`attachment_id`):** 100MB maximum
+ */
 export class Attachments extends APIResource {
   /**
    * **This endpoint is optional.** You can send media by simply providing a URL in

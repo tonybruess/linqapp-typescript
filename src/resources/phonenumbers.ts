@@ -4,6 +4,16 @@ import { APIResource } from '../core/resource';
 import { APIPromise } from '../core/api-promise';
 import { RequestOptions } from '../internal/request-options';
 
+/**
+ * Phone Numbers represent the phone numbers assigned to your partner account.
+ *
+ * Use the list phone numbers endpoint to discover which phone numbers are available
+ * for sending messages. Each phone number has capabilities (SMS, MMS, voice) and
+ * a status indicating whether it's ready for use.
+ *
+ * When creating chats or sending messages, use one of your assigned phone numbers
+ * in the `from` field.
+ */
 export class Phonenumbers extends APIResource {
   /**
    * Returns all phone numbers assigned to the authenticated partner. Use this
