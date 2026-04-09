@@ -8,7 +8,7 @@ const client = new Linqapp({
 });
 
 describe('resource webhookEvents', () => {
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('list', async () => {
     const responsePromise = client.webhookEvents.list();
     const rawResponse = await responsePromise.asResponse();

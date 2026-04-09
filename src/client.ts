@@ -11,6 +11,7 @@ import type { APIResponseProps } from './internal/parse';
 import { getPlatformHeaders } from './internal/detect-platform';
 import * as Shims from './internal/shims';
 import * as Opts from './internal/request-options';
+import { stringifyQuery } from './internal/utils/query';
 import { VERSION } from './version';
 import * as Errors from './core/error';
 import * as Uploads from './core/uploads';
@@ -259,21 +260,8 @@ export class Linqapp {
   /**
    * Basic re-implementation of `qs.stringify` for primitive types.
    */
-  protected stringifyQuery(query: Record<string, unknown>): string {
-    return Object.entries(query)
-      .filter(([_, value]) => typeof value !== 'undefined')
-      .map(([key, value]) => {
-        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-          return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
-        }
-        if (value === null) {
-          return `${encodeURIComponent(key)}=`;
-        }
-        throw new Errors.LinqappError(
-          `Cannot stringify type ${typeof value}; Expected string, number, boolean, or null. If you need to pass nested query parameters, you can manually encode them, e.g. { query: { 'foo[key1]': value1, 'foo[key2]': value2 } }, and please open a GitHub issue requesting better support for your use case.`,
-        );
-      })
-      .join('&');
+  protected stringifyQuery(query: object | Record<string, unknown>): string {
+    return stringifyQuery(query);
   }
 
   private getUserAgent(): string {
@@ -305,12 +293,13 @@ export class Linqapp {
       : new URL(baseURL + (baseURL.endsWith('/') && path.startsWith('/') ? path.slice(1) : path));
 
     const defaultQuery = this.defaultQuery();
-    if (!isEmptyObj(defaultQuery)) {
-      query = { ...defaultQuery, ...query };
+    const pathQuery = Object.fromEntries(url.searchParams);
+    if (!isEmptyObj(defaultQuery) || !isEmptyObj(pathQuery)) {
+      query = { ...pathQuery, ...defaultQuery, ...query };
     }
 
     if (typeof query === 'object' && query && !Array.isArray(query)) {
-      url.search = this.stringifyQuery(query as Record<string, unknown>);
+      url.search = this.stringifyQuery(query);
     }
 
     return url.toString();
@@ -494,7 +483,7 @@ export class Linqapp {
       loggerFor(this).info(`${responseInfo} - ${retryMessage}`);
 
       const errText = await response.text().catch((err: any) => castToError(err).message);
-      const errJSON = safeJSON(errText);
+      const errJSON = safeJSON(errText) as any;
       const errMessage = errJSON ? undefined : errText;
 
       loggerFor(this).debug(
@@ -615,9 +604,9 @@ export class Linqapp {
       }
     }
 
-    // If the API asks us to wait a certain amount of time (and it's a reasonable amount),
-    // just do what it says, but otherwise calculate a default
-    if (!(timeoutMillis && 0 <= timeoutMillis && timeoutMillis < 60 * 1000)) {
+    // If the API asks us to wait a certain amount of time, just do what it
+    // says, but otherwise calculate a default
+    if (timeoutMillis === undefined) {
       const maxRetries = options.maxRetries ?? this.maxRetries;
       timeoutMillis = this.calculateDefaultRetryTimeoutMillis(retriesRemaining, maxRetries);
     }
@@ -743,6 +732,14 @@ export class Linqapp {
         (Symbol.iterator in body && 'next' in body && typeof body.next === 'function'))
     ) {
       return { bodyHeaders: undefined, body: Shims.ReadableStreamFrom(body as AsyncIterable<Uint8Array>) };
+    } else if (
+      typeof body === 'object' &&
+      headers.values.get('content-type') === 'application/x-www-form-urlencoded'
+    ) {
+      return {
+        bodyHeaders: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: this.stringifyQuery(body),
+      };
     } else {
       return this.#encoder({ body, headers });
     }
@@ -768,10 +765,258 @@ export class Linqapp {
   static toFile = Uploads.toFile;
 
   chats: API.Chats = new API.Chats(this);
+  /**
+   * Messages are individual text or multimedia communications within a chat thread.
+   *
+   * Messages can include text, attachments, special effects (like confetti or fireworks),
+   * and reactions. All messages are associated with a specific chat and sent from a
+   * phone number you own.
+   *
+   * Messages support delivery status tracking, read receipts, and editing capabilities.
+   *
+   */
   messages: API.Messages = new API.Messages(this);
+  /**
+   * Send files (images, videos, documents, audio) with messages by providing a URL in a media part.
+   * Pre-uploading via `POST /v3/attachments` is **optional** and only needed for specific optimization scenarios.
+   *
+   * ## Sending Media via URL (up to 10MB)
+   *
+   * Provide a publicly accessible HTTPS URL with a [supported media type](#supported-file-types) in the `url` field of a media part.
+   *
+   * ```json
+   * {
+   *   "parts": [
+   *     { "type": "media", "url": "https://your-cdn.com/images/photo.jpg" }
+   *   ]
+   * }
+   * ```
+   *
+   * This works with any URL you already host — no pre-upload step required. **Maximum file size: 10MB.**
+   *
+   * ## Pre-Upload (required for files over 10MB)
+   *
+   * Use `POST /v3/attachments` when you want to:
+   * - **Send files larger than 10MB** (up to 100MB) — URL-based downloads are limited to 10MB
+   * - **Send the same file to many recipients** — upload once, reuse the `attachment_id` without re-downloading each time
+   * - **Reduce message send latency** — the file is already stored, so sending is faster
+   *
+   * **How it works:**
+   * 1. `POST /v3/attachments` with file metadata → returns a presigned `upload_url` (valid for **15 minutes**) and a permanent `attachment_id`
+   * 2. PUT the raw file bytes to the `upload_url` with the `required_headers` (no JSON or multipart — just the binary content)
+   * 3. Reference the `attachment_id` in your media part when sending messages (no expiration)
+   *
+   * **Key difference:** When you provide an external `url`, we download and process the file on every send.
+   * When you use a pre-uploaded `attachment_id`, the file is already stored — so repeated sends skip the download step entirely.
+   *
+   * ## Supported File Types
+   *
+   * - **Images:** JPEG, PNG, GIF, HEIC, HEIF, TIFF, BMP
+   * - **Videos:** MP4, MOV, M4V
+   * - **Audio:** M4A, AAC, MP3, WAV, AIFF, CAF, AMR
+   * - **Documents:** PDF, TXT, RTF, CSV, Office formats, ZIP
+   * - **Contact & Calendar:** VCF, ICS
+   *
+   * ## File Size Limits
+   *
+   * - **URL-based (`url` field):** 10MB maximum
+   * - **Pre-upload (`attachment_id`):** 100MB maximum
+   *
+   */
   attachments: API.Attachments = new API.Attachments(this);
+  /**
+   * Phone Numbers represent the phone numbers assigned to your partner account.
+   *
+   * Use the list phone numbers endpoint to discover which phone numbers are available
+   * for sending messages. Each phone number has capabilities (SMS, MMS, voice) and
+   * a status indicating whether it's ready for use.
+   *
+   * When creating chats or sending messages, use one of your assigned phone numbers
+   * in the `from` field.
+   *
+   */
   phonenumbers: API.Phonenumbers = new API.Phonenumbers(this);
+  /**
+   * Webhook Subscriptions allow you to receive real-time notifications when events
+   * occur on your account.
+   *
+   * Configure webhook endpoints to receive events such as messages sent/received,
+   * delivery status changes, reactions, typing indicators, and more.
+   *
+   * Failed deliveries (5xx, 429, network errors) are retried up to 6 times with
+   * exponential backoff: 2s, 4s, 8s, 16s, 30s. Each event includes a unique ID
+   * for deduplication.
+   *
+   * ## Webhook Headers
+   *
+   * Each webhook request includes the following headers:
+   *
+   * | Header | Description |
+   * |--------|-------------|
+   * | `X-Webhook-Event` | The event type (e.g., `message.sent`, `message.received`) |
+   * | `X-Webhook-Subscription-ID` | Your webhook subscription ID |
+   * | `X-Webhook-Timestamp` | Unix timestamp (seconds) when the webhook was sent |
+   * | `X-Webhook-Signature` | HMAC-SHA256 signature for verification |
+   *
+   * ## Verifying Webhook Signatures
+   *
+   * All webhooks are signed using HMAC-SHA256. You should always verify the signature
+   * to ensure the webhook originated from Linq and hasn't been tampered with.
+   *
+   * **Signature Construction:**
+   *
+   * The signature is computed over a concatenation of the timestamp and payload:
+   *
+   * ```
+   * {timestamp}.{payload}
+   * ```
+   *
+   * Where:
+   * - `timestamp` is the value from the `X-Webhook-Timestamp` header
+   * - `payload` is the raw JSON request body (exact bytes, not re-serialized)
+   *
+   * **Verification Steps:**
+   *
+   * 1. Extract the `X-Webhook-Timestamp` and `X-Webhook-Signature` headers
+   * 2. Get the raw request body bytes (do not parse and re-serialize)
+   * 3. Concatenate: `"{timestamp}.{payload}"`
+   * 4. Compute HMAC-SHA256 using your signing secret as the key
+   * 5. Hex-encode the result and compare with `X-Webhook-Signature`
+   * 6. Use constant-time comparison to prevent timing attacks
+   *
+   * **Example (Python):**
+   *
+   * ```python
+   * import hmac
+   * import hashlib
+   *
+   * def verify_webhook(signing_secret, payload, timestamp, signature):
+   *     message = f"{timestamp}.{payload.decode('utf-8')}"
+   *     expected = hmac.new(
+   *         signing_secret.encode('utf-8'),
+   *         message.encode('utf-8'),
+   *         hashlib.sha256
+   *     ).hexdigest()
+   *     return hmac.compare_digest(expected, signature)
+   * ```
+   *
+   * **Example (Node.js):**
+   *
+   * ```javascript
+   * const crypto = require('crypto');
+   *
+   * function verifyWebhook(signingSecret, payload, timestamp, signature) {
+   *   const message = `${timestamp}.${payload}`;
+   *   const expected = crypto
+   *     .createHmac('sha256', signingSecret)
+   *     .update(message)
+   *     .digest('hex');
+   *   return crypto.timingSafeEqual(
+   *     Buffer.from(expected),
+   *     Buffer.from(signature)
+   *   );
+   * }
+   * ```
+   *
+   * **Security Best Practices:**
+   *
+   * - Reject webhooks with timestamps older than 5 minutes to prevent replay attacks
+   * - Always use constant-time comparison for signature verification
+   * - Store your signing secret securely (e.g., environment variable, secrets manager)
+   * - Return a 2xx status code quickly, then process the webhook asynchronously
+   *
+   */
   webhookEvents: API.WebhookEvents = new API.WebhookEvents(this);
+  /**
+   * Webhook Subscriptions allow you to receive real-time notifications when events
+   * occur on your account.
+   *
+   * Configure webhook endpoints to receive events such as messages sent/received,
+   * delivery status changes, reactions, typing indicators, and more.
+   *
+   * Failed deliveries (5xx, 429, network errors) are retried up to 6 times with
+   * exponential backoff: 2s, 4s, 8s, 16s, 30s. Each event includes a unique ID
+   * for deduplication.
+   *
+   * ## Webhook Headers
+   *
+   * Each webhook request includes the following headers:
+   *
+   * | Header | Description |
+   * |--------|-------------|
+   * | `X-Webhook-Event` | The event type (e.g., `message.sent`, `message.received`) |
+   * | `X-Webhook-Subscription-ID` | Your webhook subscription ID |
+   * | `X-Webhook-Timestamp` | Unix timestamp (seconds) when the webhook was sent |
+   * | `X-Webhook-Signature` | HMAC-SHA256 signature for verification |
+   *
+   * ## Verifying Webhook Signatures
+   *
+   * All webhooks are signed using HMAC-SHA256. You should always verify the signature
+   * to ensure the webhook originated from Linq and hasn't been tampered with.
+   *
+   * **Signature Construction:**
+   *
+   * The signature is computed over a concatenation of the timestamp and payload:
+   *
+   * ```
+   * {timestamp}.{payload}
+   * ```
+   *
+   * Where:
+   * - `timestamp` is the value from the `X-Webhook-Timestamp` header
+   * - `payload` is the raw JSON request body (exact bytes, not re-serialized)
+   *
+   * **Verification Steps:**
+   *
+   * 1. Extract the `X-Webhook-Timestamp` and `X-Webhook-Signature` headers
+   * 2. Get the raw request body bytes (do not parse and re-serialize)
+   * 3. Concatenate: `"{timestamp}.{payload}"`
+   * 4. Compute HMAC-SHA256 using your signing secret as the key
+   * 5. Hex-encode the result and compare with `X-Webhook-Signature`
+   * 6. Use constant-time comparison to prevent timing attacks
+   *
+   * **Example (Python):**
+   *
+   * ```python
+   * import hmac
+   * import hashlib
+   *
+   * def verify_webhook(signing_secret, payload, timestamp, signature):
+   *     message = f"{timestamp}.{payload.decode('utf-8')}"
+   *     expected = hmac.new(
+   *         signing_secret.encode('utf-8'),
+   *         message.encode('utf-8'),
+   *         hashlib.sha256
+   *     ).hexdigest()
+   *     return hmac.compare_digest(expected, signature)
+   * ```
+   *
+   * **Example (Node.js):**
+   *
+   * ```javascript
+   * const crypto = require('crypto');
+   *
+   * function verifyWebhook(signingSecret, payload, timestamp, signature) {
+   *   const message = `${timestamp}.${payload}`;
+   *   const expected = crypto
+   *     .createHmac('sha256', signingSecret)
+   *     .update(message)
+   *     .digest('hex');
+   *   return crypto.timingSafeEqual(
+   *     Buffer.from(expected),
+   *     Buffer.from(signature)
+   *   );
+   * }
+   * ```
+   *
+   * **Security Best Practices:**
+   *
+   * - Reject webhooks with timestamps older than 5 minutes to prevent replay attacks
+   * - Always use constant-time comparison for signature verification
+   * - Store your signing secret securely (e.g., environment variable, secrets manager)
+   * - Return a 2xx status code quickly, then process the webhook asynchronously
+   *
+   */
   webhookSubscriptions: API.WebhookSubscriptions = new API.WebhookSubscriptions(this);
 }
 

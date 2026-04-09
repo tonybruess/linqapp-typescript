@@ -8,7 +8,7 @@ const client = new Linqapp({
 });
 
 describe('resource messages', () => {
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('list', async () => {
     const responsePromise = client.chats.messages.list('550e8400-e29b-41d4-a716-446655440000');
     const rawResponse = await responsePromise.asResponse();
@@ -20,7 +20,7 @@ describe('resource messages', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('list: request options and params are passed correctly', async () => {
     // ensure the request options are being passed correctly by passing an invalid HTTP method in order to cause an error
     await expect(
@@ -32,7 +32,7 @@ describe('resource messages', () => {
     ).rejects.toThrow(Linqapp.NotFoundError);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('send: only required params', async () => {
     const responsePromise = client.chats.messages.send('550e8400-e29b-41d4-a716-446655440000', {
       message: { parts: [{ type: 'text', value: 'Hello, world!' }] },
@@ -46,7 +46,7 @@ describe('resource messages', () => {
     expect(dataAndResponse.response).toBe(rawResponse);
   });
 
-  // Prism tests are disabled
+  // Mock server tests are disabled
   test.skip('send: required and optional params', async () => {
     const response = await client.chats.messages.send('550e8400-e29b-41d4-a716-446655440000', {
       message: {
