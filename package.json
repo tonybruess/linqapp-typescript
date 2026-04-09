@@ -1,6 +1,6 @@
 {
   "name": "linqapp",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "The official TypeScript library for the Linqapp API",
   "author": "Linqapp <support@linq.com>",
   "types": "dist/index.d.ts",
